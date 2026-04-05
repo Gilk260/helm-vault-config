@@ -1,0 +1,99 @@
+name: Lint, Validate & Scan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ct-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - uses: helm/chart-testing-action@v2.8.0
+
+      - name: Lint chart
+        run: ct lint --config ct.yaml --all
+
+  kubeconform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin
+
+      - name: Validate rendered templates
+        run: |
+          helm template test-release . \
+            | kubeconform \
+                -kubernetes-version 1.31.0 \
+                -schema-location default \
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+                -ignore-missing-schemas \
+                -summary \
+                -output text
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  kube-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kube-linter
+        run: |
+          curl -fsSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux \
+            -o /usr/local/bin/kube-linter
+          chmod +x /usr/local/bin/kube-linter
+
+      - name: Render and lint templates
+        run: |
+          mkdir -p rendered
+          helm template test-release . --output-dir rendered
+          kube-linter lint rendered/ --config .kube-linter.yaml
+
+  helm-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate docs
+        uses: losisin/helm-docs-github-action@v1
+        with:
+          chart-search-root: .
+
+      - name: Check docs are up to date
+        run: |
+          if ! git diff --exit-code README.md; then
+            echo "::error::README.md is out of date. Run 'helm-docs' locally."
+            exit 1
+          fi
