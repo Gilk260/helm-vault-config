@@ -40,14 +40,17 @@ jobs:
 
       - name: Validate rendered templates
         run: |
-          helm template test-release . \
-            | kubeconform \
+          for values in ci/*-values.yaml; do
+            echo "--- Validating with $values ---"
+            helm template test-release . --values "$values" \
+              | kubeconform \
                 -kubernetes-version 1.31.0 \
                 -schema-location default \
                 -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
                 -ignore-missing-schemas \
                 -summary \
                 -output text
+          done
 
   trivy:
     runs-on: ubuntu-latest
@@ -77,9 +80,26 @@ jobs:
 
       - name: Render and lint templates
         run: |
-          mkdir -p rendered
-          helm template test-release . --output-dir rendered
-          kube-linter lint rendered/ --config .kube-linter.yaml
+          for values in ci/*-values.yaml; do
+            echo "--- Linting with $values ---"
+            mkdir -p rendered
+            helm template test-release . --values "$values" --output-dir rendered
+            kube-linter lint rendered/ --config .kube-linter.yaml
+            rm -rf rendered
+          done
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install helm-unittest
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest.git --verify=false
+
+      - name: Run unit tests
+        run: helm unittest -f 'tests/**/*_test.yaml' .
 
   helm-docs:
     runs-on: ubuntu-latest

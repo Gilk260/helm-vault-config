@@ -35,6 +35,15 @@ repos:
         files: '(templates/|values.*\.yaml|Chart\.yaml)'
         pass_filenames: false
 
+  - repo: local
+    hooks:
+      - id: helm-unittest
+        name: Run helm unit tests
+        language: system
+        entry: sh -c 'helm unittest -f "tests/**/*_test.yaml" .'
+        files: '(templates/|tests/|values.*\.yaml|Chart\.yaml)'
+        pass_filenames: false
+
   - repo: https://github.com/norwoodj/helm-docs
     rev: v1.14.2
     hooks:
