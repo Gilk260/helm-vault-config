@@ -1,0 +1,9 @@
+---
+randomSecrets:
+  test-secret:
+    authentication:
+      role: vault-admin
+    path: secret
+    secretKey: password
+    secretFormat:
+      passwordPolicyName: default-password
