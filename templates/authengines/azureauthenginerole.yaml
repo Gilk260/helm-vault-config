@@ -1,0 +1,82 @@
+{{- range $name, $config := .Values.azureAuthEngineRoles }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: AzureAuthEngineRole
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "azureauthenginerole") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "azureAuthEngineRoles.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  name: {{ required (printf "azureAuthEngineRoles.%s.name is required" $name) $config.name | quote }}
+  {{- with $config.path }}
+  path: {{ . | quote }}
+  {{- end }}
+  {{- with $config.boundGroupIDs }}
+  boundGroupIDs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundLocations }}
+  boundLocations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundResourceGroups }}
+  boundResourceGroups:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundScaleSets }}
+  boundScaleSets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundServicePrincipalIDs }}
+  boundServicePrincipalIDs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundSubscriptionIDs }}
+  boundSubscriptionIDs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.policies }}
+  policies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.tokenPolicies }}
+  tokenPolicies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.tokenBoundCIDRs }}
+  tokenBoundCIDRs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  tokenTTL: {{ default "" $config.tokenTTL | quote }}
+  tokenMaxTTL: {{ default "" $config.tokenMaxTTL | quote }}
+  tokenExplicitMaxTTL: {{ default "" $config.tokenExplicitMaxTTL | quote }}
+  tokenType: {{ default "" $config.tokenType | quote }}
+  tokenNoDefaultPolicy: {{ ternary $config.tokenNoDefaultPolicy false (hasKey $config "tokenNoDefaultPolicy") }}
+  tokenNumUses: {{ default 0 $config.tokenNumUses }}
+  tokenPeriod: {{ default 0 $config.tokenPeriod }}
+{{- end }}
+{{- end }}

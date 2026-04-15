@@ -1,0 +1,396 @@
+---
+suite: AzureAuthEngineRole
+templates:
+  - authengines/azureauthenginerole.yaml
+
+tests:
+  - it: should not render when azureAuthEngineRoles is empty
+    set:
+      azureAuthEngineRoles: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      azureAuthEngineRoles:
+        disabled-role: null
+        active-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: AzureAuthEngineRole
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      azureAuthEngineRoles:
+        my-azure-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-my-azure-role-azureauthenginerole$"
+
+  - it: should set the role name
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: custom-role-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-role-name
+
+  - it: should apply sensible defaults
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.tokenTTL
+          value: ""
+      - equal:
+          path: spec.tokenMaxTTL
+          value: ""
+      - equal:
+          path: spec.tokenExplicitMaxTTL
+          value: ""
+      - equal:
+          path: spec.tokenType
+          value: ""
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: false
+      - equal:
+          path: spec.tokenNumUses
+          value: 0
+      - equal:
+          path: spec.tokenPeriod
+          value: 0
+
+  - it: should allow overriding authentication defaults
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+            namespace: vault-enterprise
+          name: my-azure-role
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.authentication.namespace
+          value: vault-enterprise
+
+  - it: should not render authentication namespace when not set
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should fail when authentication.role is missing
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication: {}
+          name: my-azure-role
+    asserts:
+      - failedTemplate:
+          errorMessage: "azureAuthEngineRoles.my-role.authentication.role is required"
+
+  - it: should fail when name is missing
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+    asserts:
+      - failedTemplate:
+          errorMessage: "azureAuthEngineRoles.my-role.name is required"
+
+  - it: should render path when specified
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          path: azure
+    asserts:
+      - equal:
+          path: spec.path
+          value: azure
+
+  - it: should not render path when not specified
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isNull:
+          path: spec.path
+
+  - it: should render bound lists
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          boundGroupIDs:
+            - "group-1"
+            - "group-2"
+          boundLocations:
+            - eastus
+            - westus
+          boundResourceGroups:
+            - rg-production
+          boundScaleSets:
+            - vmss-workers
+          boundServicePrincipalIDs:
+            - "sp-id-1"
+          boundSubscriptionIDs:
+            - "sub-id-1"
+            - "sub-id-2"
+    asserts:
+      - equal:
+          path: spec.boundGroupIDs
+          value:
+            - "group-1"
+            - "group-2"
+      - equal:
+          path: spec.boundLocations
+          value:
+            - eastus
+            - westus
+      - equal:
+          path: spec.boundResourceGroups
+          value:
+            - rg-production
+      - equal:
+          path: spec.boundScaleSets
+          value:
+            - vmss-workers
+      - equal:
+          path: spec.boundServicePrincipalIDs
+          value:
+            - "sp-id-1"
+      - equal:
+          path: spec.boundSubscriptionIDs
+          value:
+            - "sub-id-1"
+            - "sub-id-2"
+
+  - it: should not render bound lists when not specified
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isNull:
+          path: spec.boundGroupIDs
+      - isNull:
+          path: spec.boundLocations
+      - isNull:
+          path: spec.boundResourceGroups
+      - isNull:
+          path: spec.boundScaleSets
+      - isNull:
+          path: spec.boundServicePrincipalIDs
+      - isNull:
+          path: spec.boundSubscriptionIDs
+
+  - it: should render tokenPolicies
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          tokenPolicies:
+            - read-secrets
+            - list-secrets
+    asserts:
+      - equal:
+          path: spec.tokenPolicies
+          value:
+            - read-secrets
+            - list-secrets
+
+  - it: should render deprecated policies
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          policies:
+            - legacy-policy
+    asserts:
+      - equal:
+          path: spec.policies
+          value:
+            - legacy-policy
+
+  - it: should render tokenBoundCIDRs
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          tokenBoundCIDRs:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+    asserts:
+      - equal:
+          path: spec.tokenBoundCIDRs
+          value:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+
+  - it: should allow overriding token defaults
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          tokenTTL: "1h"
+          tokenMaxTTL: "24h"
+          tokenExplicitMaxTTL: "48h"
+          tokenType: batch
+          tokenNoDefaultPolicy: true
+          tokenNumUses: 10
+          tokenPeriod: 3600
+    asserts:
+      - equal:
+          path: spec.tokenTTL
+          value: "1h"
+      - equal:
+          path: spec.tokenMaxTTL
+          value: "24h"
+      - equal:
+          path: spec.tokenExplicitMaxTTL
+          value: "48h"
+      - equal:
+          path: spec.tokenType
+          value: batch
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: true
+      - equal:
+          path: spec.tokenNumUses
+          value: 10
+      - equal:
+          path: spec.tokenPeriod
+          value: 3600
+
+  - it: should render connection when specified
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      azureAuthEngineRoles:
+        first-role:
+          authentication:
+            role: vault-admin
+          name: first-azure-role
+        second-role:
+          authentication:
+            role: vault-admin
+          name: second-azure-role
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      azureAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: my-azure-role
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
