@@ -5,3 +5,25 @@ fullnameOverride: ""
 randomSecrets: {}
 
 vaultSecrets: {}
+
+groups: {}
+
+groupAliases: {}
+
+entities: {}
+
+entityAliases: {}
+
+identityOidcProviders: {}
+
+identityOidcScopes: {}
+
+identityOidcClients: {}
+
+identityOidcAssignments: {}
+
+identityTokenConfigs: {}
+
+identityTokenKeys: {}
+
+identityTokenRoles: {}

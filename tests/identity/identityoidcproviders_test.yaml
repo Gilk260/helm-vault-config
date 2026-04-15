@@ -1,0 +1,199 @@
+---
+suite: IdentityOIDCProvider
+templates:
+  - identity/identityoidcproviders.yaml
+
+tests:
+  - it: should not render when identityOidcProviders is empty
+    set:
+      identityOidcProviders: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityOidcProviders:
+        disabled-provider: null
+        active-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityOIDCProvider
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-my-provider-identityoidcprovider$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-provider
+
+  - it: should allow overriding vault name
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+          name: custom-provider-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-provider-name
+
+  - it: should apply sensible defaults
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityOidcProviders.my-provider.authentication.role is required"
+
+  - it: should render issuer when specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+          issuer: "https://vault.example.com"
+    asserts:
+      - equal:
+          path: spec.issuer
+          value: "https://vault.example.com"
+
+  - it: should not render issuer when not specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.issuer
+
+  - it: should render allowedClientIDs when specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+          allowedClientIDs:
+            - client-id-1
+            - "*"
+    asserts:
+      - equal:
+          path: spec.allowedClientIDs
+          value:
+            - client-id-1
+            - "*"
+
+  - it: should render scopesSupported when specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+          scopesSupported:
+            - openid
+            - profile
+            - email
+    asserts:
+      - equal:
+          path: spec.scopesSupported
+          value:
+            - openid
+            - profile
+            - email
+
+  - it: should render connection when specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      identityOidcProviders:
+        first-provider:
+          authentication:
+            role: vault-admin
+        second-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityOidcProviders:
+        my-provider:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

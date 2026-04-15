@@ -1,0 +1,53 @@
+{{- range $name, $config := .Values.groups }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Group
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "group") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "groups.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  name: {{ default $name $config.name | quote }}
+  type: {{ default "internal" $config.type | quote }}
+  {{- with $config.policies }}
+  policies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.memberEntityIDs }}
+  memberEntityIDs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.memberGroupIDs }}
+  memberGroupIDs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

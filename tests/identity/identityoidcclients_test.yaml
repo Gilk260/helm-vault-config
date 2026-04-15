@@ -1,0 +1,228 @@
+---
+suite: IdentityOIDCClient
+templates:
+  - identity/identityoidcclients.yaml
+
+tests:
+  - it: should not render when identityOidcClients is empty
+    set:
+      identityOidcClients: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityOidcClients:
+        disabled-client: null
+        active-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityOIDCClient
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityOidcClients:
+        grafana:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-grafana-identityoidcclient$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityOidcClients:
+        grafana:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: grafana
+
+  - it: should allow overriding vault name
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+          name: custom-client-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-client-name
+
+  - it: should apply sensible defaults
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.clientType
+          value: confidential
+      - equal:
+          path: spec.key
+          value: default
+      - equal:
+          path: spec.accessTokenTTL
+          value: "24h"
+      - equal:
+          path: spec.idTokenTTL
+          value: "24h"
+
+  - it: should allow overriding all defaults
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          clientType: public
+          key: my-key
+          accessTokenTTL: 1h
+          idTokenTTL: 30m
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.clientType
+          value: public
+      - equal:
+          path: spec.key
+          value: my-key
+      - equal:
+          path: spec.accessTokenTTL
+          value: "1h"
+      - equal:
+          path: spec.idTokenTTL
+          value: "30m"
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityOidcClients:
+        my-client:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityOidcClients.my-client.authentication.role is required"
+
+  - it: should render redirectURIs when specified
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+          redirectURIs:
+            - "https://grafana.example.com/login/generic_oauth"
+            - "http://localhost:3000/login/generic_oauth"
+    asserts:
+      - equal:
+          path: spec.redirectURIs
+          value:
+            - "https://grafana.example.com/login/generic_oauth"
+            - "http://localhost:3000/login/generic_oauth"
+
+  - it: should not render redirectURIs when not specified
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.redirectURIs
+
+  - it: should render assignments when specified
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+          assignments:
+            - allow_all
+    asserts:
+      - equal:
+          path: spec.assignments
+          value:
+            - allow_all
+
+  - it: should render connection when specified
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      identityOidcClients:
+        first-client:
+          authentication:
+            role: vault-admin
+        second-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityOidcClients:
+        my-client:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

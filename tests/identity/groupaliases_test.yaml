@@ -1,0 +1,189 @@
+---
+suite: GroupAlias
+templates:
+  - identity/groupaliases.yaml
+
+tests:
+  - it: should not render when groupAliases is empty
+    set:
+      groupAliases: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      groupAliases:
+        disabled-alias: null
+        active-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: GroupAlias
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      groupAliases:
+        ldap-admins:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-ldap-admins-groupalias$"
+
+  - it: should use dict key as vault name by default
+    set:
+      groupAliases:
+        ldap-admins:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - equal:
+          path: spec.name
+          value: ldap-admins
+
+  - it: should allow overriding vault name
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+          name: custom-alias-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-alias-name
+
+  - it: should apply sensible defaults
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should fail when authentication.role is missing
+    set:
+      groupAliases:
+        my-alias:
+          authentication: {}
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - failedTemplate:
+          errorMessage: "groupAliases.my-alias.authentication.role is required"
+
+  - it: should fail when authEngineMountPath is missing
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          groupName: admins
+    asserts:
+      - failedTemplate:
+          errorMessage: "groupAliases.my-alias.authEngineMountPath is required"
+
+  - it: should fail when groupName is missing
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+    asserts:
+      - failedTemplate:
+          errorMessage: "groupAliases.my-alias.groupName is required"
+
+  - it: should render connection when specified
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      groupAliases:
+        first-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+        second-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/oidc
+          groupName: devs
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      groupAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          groupName: admins
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

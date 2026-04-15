@@ -1,0 +1,260 @@
+---
+suite: Group
+templates:
+  - identity/groups.yaml
+
+tests:
+  - it: should not render when groups is empty
+    set:
+      groups: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      groups:
+        disabled-group: null
+        active-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: Group
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      groups:
+        admins:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-admins-group$"
+
+  - it: should use dict key as vault name by default
+    set:
+      groups:
+        admins:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: admins
+
+  - it: should allow overriding vault name
+    set:
+      groups:
+        admins:
+          authentication:
+            role: vault-admin
+          name: custom-group-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-group-name
+
+  - it: should apply sensible defaults
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.type
+          value: internal
+
+  - it: should allow overriding all defaults
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          type: external
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.type
+          value: external
+
+  - it: should fail when authentication.role is missing
+    set:
+      groups:
+        my-group:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "groups.my-group.authentication.role is required"
+
+  - it: should render policies when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+          policies:
+            - admin-policy
+            - read-policy
+    asserts:
+      - equal:
+          path: spec.policies
+          value:
+            - admin-policy
+            - read-policy
+
+  - it: should not render policies when not specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.policies
+
+  - it: should render memberEntityIDs when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+          memberEntityIDs:
+            - entity-id-1
+            - entity-id-2
+    asserts:
+      - equal:
+          path: spec.memberEntityIDs
+          value:
+            - entity-id-1
+            - entity-id-2
+
+  - it: should render memberGroupIDs when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+          memberGroupIDs:
+            - group-id-1
+    asserts:
+      - equal:
+          path: spec.memberGroupIDs
+          value:
+            - group-id-1
+
+  - it: should render metadata when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+          metadata:
+            team: platform
+            env: prod
+    asserts:
+      - equal:
+          path: spec.metadata.team
+          value: platform
+      - equal:
+          path: spec.metadata.env
+          value: prod
+
+  - it: should render connection when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      groups:
+        first-group:
+          authentication:
+            role: vault-admin
+        second-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+
+  - it: should render authentication namespace when specified
+    set:
+      groups:
+        my-group:
+          authentication:
+            role: vault-admin
+            namespace: admin
+    asserts:
+      - equal:
+          path: spec.authentication.namespace
+          value: admin
