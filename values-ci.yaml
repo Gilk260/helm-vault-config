@@ -1,0 +1,11 @@
+---
+
+randomSecrets:
+  ci-rs:
+    authentication:
+      role: vault-ci
+    path: secret/ci
+    secretKey: password
+    # isKVSecretsEngineV2: false
+    secretFormat:
+      passwordPolicyName: default-password

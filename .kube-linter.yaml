@@ -1,0 +1,6 @@
+---
+checks:
+  exclude:
+    # Helm templates use placeholder values, not all checks apply
+    - "unset-cpu-requirements"
+    - "unset-memory-requirements"
