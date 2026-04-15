@@ -7,3 +7,19 @@ randomSecrets:
     secretKey: password
     secretFormat:
       passwordPolicyName: default-password
+
+vaultSecrets:
+  app-credentials:
+    vaultSecretDefinitions:
+      - name: db-creds
+        authentication:
+          path: kubernetes
+          role: app-role
+          serviceAccount:
+            name: app-sa
+        path: secret/data/app/db
+    output:
+      name: app-db-credentials
+      stringData:
+        username: '{{ .db-creds.username }}'
+        password: '{{ .db-creds.password }}'
