@@ -1,0 +1,60 @@
+{{- range $name, $config := .Values.azureAuthEngineConfigs }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: AzureAuthEngineConfig
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "azureauthengineconfig") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "azureAuthEngineConfigs.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  path: {{ required (printf "azureAuthEngineConfigs.%s.path is required" $name) $config.path | quote }}
+  resource: {{ required (printf "azureAuthEngineConfigs.%s.resource is required" $name) $config.resource | quote }}
+  tenantID: {{ required (printf "azureAuthEngineConfigs.%s.tenantID is required" $name) $config.tenantID | quote }}
+  clientID: {{ default "" $config.clientID | quote }}
+  environment: {{ default "AzurePublicCloud" $config.environment | quote }}
+  maxRetries: {{ default 3 $config.maxRetries }}
+  maxRetryDelay: {{ default 60 $config.maxRetryDelay }}
+  retryDelay: {{ default 4 $config.retryDelay }}
+  {{- with $config.azureCredentials }}
+  azureCredentials:
+    {{- if .secret }}
+    secret:
+      name: {{ .secret.name | quote }}
+    {{- end }}
+    {{- if .vaultSecret }}
+    vaultSecret:
+      path: {{ .vaultSecret.path | quote }}
+    {{- end }}
+    {{- if .randomSecret }}
+    randomSecret:
+      name: {{ .randomSecret.name | quote }}
+    {{- end }}
+    usernameKey: {{ default "username" .usernameKey | quote }}
+    passwordKey: {{ default "password" .passwordKey | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
