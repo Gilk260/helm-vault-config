@@ -5,3 +5,7 @@ fullnameOverride: ""
 randomSecrets: {}
 
 vaultSecrets: {}
+
+pkiSecretEngineConfigs: {}
+
+pkiSecretEngineRoles: {}
