@@ -1,0 +1,120 @@
+{{- range $name, $config := .Values.ldapAuthEngineConfigs }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: LDAPAuthEngineConfig
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "ldapauthengineconfig") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "ldapAuthEngineConfigs.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  path: {{ required (printf "ldapAuthEngineConfigs.%s.path is required" $name) $config.path | quote }}
+  url: {{ default "ldap://127.0.0.1" $config.url | quote }}
+  caseSensitiveNames: {{ ternary $config.caseSensitiveNames false (hasKey $config "caseSensitiveNames") }}
+  {{- with $config.bindCredentials }}
+  bindCredentials:
+    {{- with .secret }}
+    secret:
+      name: {{ .name | quote }}
+    {{- end }}
+    {{- with .vaultSecret }}
+    vaultSecret:
+      path: {{ .path | quote }}
+    {{- end }}
+    {{- with .randomSecret }}
+    randomSecret:
+      name: {{ .name | quote }}
+    {{- end }}
+    passwordKey: {{ default "password" .passwordKey | quote }}
+    usernameKey: {{ default "username" .usernameKey | quote }}
+  {{- end }}
+  {{- with $config.bindDN }}
+  bindDN: {{ . | quote }}
+  {{- end }}
+  {{- with $config.UPNDomain }}
+  UPNDomain: {{ . | quote }}
+  {{- end }}
+  discoverDN: {{ ternary $config.discoverDN false (hasKey $config "discoverDN") }}
+  denyNullBind: {{ ternary $config.denyNullBind true (hasKey $config "denyNullBind") }}
+  {{- with $config.userDN }}
+  userDN: {{ . | quote }}
+  {{- end }}
+  userAttr: {{ default "cn" $config.userAttr | quote }}
+  {{- with $config.userFilter }}
+  userFilter: {{ . | quote }}
+  {{- end }}
+  {{- with $config.groupDN }}
+  groupDN: {{ . | quote }}
+  {{- end }}
+  {{- with $config.groupAttr }}
+  groupAttr: {{ . | quote }}
+  {{- end }}
+  {{- with $config.groupFilter }}
+  groupFilter: {{ . | quote }}
+  {{- end }}
+  usernameAsAlias: {{ ternary $config.usernameAsAlias false (hasKey $config "usernameAsAlias") }}
+  anonymousGroupSearch: {{ ternary $config.anonymousGroupSearch false (hasKey $config "anonymousGroupSearch") }}
+  insecureTLS: {{ ternary $config.insecureTLS false (hasKey $config "insecureTLS") }}
+  startTLS: {{ ternary $config.startTLS false (hasKey $config "startTLS") }}
+  {{- with $config.certificate }}
+  certificate: {{ . | quote }}
+  {{- end }}
+  {{- with $config.clientTLSCert }}
+  clientTLSCert: {{ . | quote }}
+  {{- end }}
+  {{- with $config.clientTLSKey }}
+  clientTLSKey: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tLSConfig }}
+  tLSConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  TLSMaxVersion: {{ default "tls12" $config.TLSMaxVersion | quote }}
+  TLSMinVersion: {{ default "tls12" $config.TLSMinVersion | quote }}
+  requestTimeout: {{ default "90s" $config.requestTimeout | quote }}
+  {{- with $config.tokenTTL }}
+  tokenTTL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenMaxTTL }}
+  tokenMaxTTL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenPolicies }}
+  tokenPolicies: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenBoundCIDRs }}
+  tokenBoundCIDRs: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenExplicitMaxTTL }}
+  tokenExplicitMaxTTL: {{ . | quote }}
+  {{- end }}
+  tokenNumUses: {{ ternary $config.tokenNumUses 0 (hasKey $config "tokenNumUses") }}
+  tokenPeriod: {{ ternary $config.tokenPeriod 0 (hasKey $config "tokenPeriod") }}
+  {{- with $config.tokenType }}
+  tokenType: {{ . | quote }}
+  {{- end }}
+  tokenNoDefaultPolicy: {{ ternary $config.tokenNoDefaultPolicy false (hasKey $config "tokenNoDefaultPolicy") }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,230 @@
+---
+suite: LDAPAuthEngineGroup
+templates:
+  - authengines/ldapauthenginegroup.yaml
+
+tests:
+  - it: should not render when ldapAuthEngineGroups is empty
+    set:
+      ldapAuthEngineGroups: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      ldapAuthEngineGroups:
+        disabled-group: null
+        active-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: LDAPAuthEngineGroup
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      ldapAuthEngineGroups:
+        dev-team:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-dev-team-ldapauthenginegroup$"
+
+  - it: should use dict key as LDAP group name by default
+    set:
+      ldapAuthEngineGroups:
+        engineering:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.name
+          value: engineering
+
+  - it: should allow overriding LDAP group name
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+          name: cn=engineering,ou=Groups,dc=example,dc=com
+    asserts:
+      - equal:
+          path: spec.name
+          value: cn=engineering,ou=Groups,dc=example,dc=com
+
+  - it: should apply sensible defaults
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.policies
+          value: ""
+
+  - it: should allow overriding all defaults
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          path: ldap
+          name: custom-group
+          policies: "admin,dev-readonly"
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.name
+          value: custom-group
+      - equal:
+          path: spec.policies
+          value: "admin,dev-readonly"
+
+  - it: should render policies when specified
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+          policies: "default,secrets-reader,kv-writer"
+    asserts:
+      - equal:
+          path: spec.policies
+          value: "default,secrets-reader,kv-writer"
+
+  - it: should fail when authentication.role is missing
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication: {}
+          path: ldap
+    asserts:
+      - failedTemplate:
+          errorMessage: "ldapAuthEngineGroups.my-group.authentication.role is required"
+
+  - it: should fail when path is missing
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+    asserts:
+      - failedTemplate:
+          errorMessage: "ldapAuthEngineGroups.my-group.path is required"
+
+  - it: should render connection when specified
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render authentication namespace when specified
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+            namespace: enterprise-ns
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.authentication.namespace
+          value: enterprise-ns
+
+  - it: should render multiple resources
+    set:
+      ldapAuthEngineGroups:
+        engineering:
+          authentication:
+            role: vault-admin
+          path: ldap
+          policies: admin
+        qa-team:
+          authentication:
+            role: vault-admin
+          path: ldap
+          policies: readonly
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      ldapAuthEngineGroups:
+        my-group:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

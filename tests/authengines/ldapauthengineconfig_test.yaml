@@ -1,0 +1,559 @@
+---
+suite: LDAPAuthEngineConfig
+templates:
+  - authengines/ldapauthengineconfig.yaml
+
+tests:
+  - it: should not render when ldapAuthEngineConfigs is empty
+    set:
+      ldapAuthEngineConfigs: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      ldapAuthEngineConfigs:
+        disabled-config: null
+        active-config:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: LDAPAuthEngineConfig
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      ldapAuthEngineConfigs:
+        corp-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-corp-ldap-ldapauthengineconfig$"
+
+  - it: should apply sensible defaults
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.url
+          value: "ldap://127.0.0.1"
+      - equal:
+          path: spec.caseSensitiveNames
+          value: false
+      - equal:
+          path: spec.discoverDN
+          value: false
+      - equal:
+          path: spec.denyNullBind
+          value: true
+      - equal:
+          path: spec.userAttr
+          value: cn
+      - equal:
+          path: spec.usernameAsAlias
+          value: false
+      - equal:
+          path: spec.anonymousGroupSearch
+          value: false
+      - equal:
+          path: spec.insecureTLS
+          value: false
+      - equal:
+          path: spec.startTLS
+          value: false
+      - equal:
+          path: spec.TLSMaxVersion
+          value: tls12
+      - equal:
+          path: spec.TLSMinVersion
+          value: tls12
+      - equal:
+          path: spec.requestTimeout
+          value: "90s"
+      - equal:
+          path: spec.tokenNumUses
+          value: 0
+      - equal:
+          path: spec.tokenPeriod
+          value: 0
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: false
+
+  - it: should allow overriding all boolean defaults
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          path: ldap
+          url: ldaps://ldap.example.com:636
+          caseSensitiveNames: true
+          discoverDN: true
+          denyNullBind: false
+          usernameAsAlias: true
+          anonymousGroupSearch: true
+          insecureTLS: true
+          startTLS: true
+          tokenNoDefaultPolicy: true
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.caseSensitiveNames
+          value: true
+      - equal:
+          path: spec.discoverDN
+          value: true
+      - equal:
+          path: spec.denyNullBind
+          value: false
+      - equal:
+          path: spec.usernameAsAlias
+          value: true
+      - equal:
+          path: spec.anonymousGroupSearch
+          value: true
+      - equal:
+          path: spec.insecureTLS
+          value: true
+      - equal:
+          path: spec.startTLS
+          value: true
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: true
+
+  - it: should render LDAP search fields when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          bindDN: cn=admin,dc=example,dc=com
+          UPNDomain: example.com
+          userDN: ou=Users,dc=example,dc=com
+          userAttr: sAMAccountName
+          userFilter: ({{.UserAttr}}={{.Username}})
+          groupDN: ou=Groups,dc=example,dc=com
+          groupAttr: cn
+          groupFilter: (|(memberUid={{.Username}})(member={{.UserDN}}))
+    asserts:
+      - equal:
+          path: spec.bindDN
+          value: cn=admin,dc=example,dc=com
+      - equal:
+          path: spec.UPNDomain
+          value: example.com
+      - equal:
+          path: spec.userDN
+          value: ou=Users,dc=example,dc=com
+      - equal:
+          path: spec.userAttr
+          value: sAMAccountName
+      - equal:
+          path: spec.userFilter
+          value: ({{.UserAttr}}={{.Username}})
+      - equal:
+          path: spec.groupDN
+          value: ou=Groups,dc=example,dc=com
+      - equal:
+          path: spec.groupAttr
+          value: cn
+      - equal:
+          path: spec.groupFilter
+          value: (|(memberUid={{.Username}})(member={{.UserDN}}))
+
+  - it: should not render optional string fields when not specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isNull:
+          path: spec.bindDN
+      - isNull:
+          path: spec.UPNDomain
+      - isNull:
+          path: spec.userDN
+      - isNull:
+          path: spec.userFilter
+      - isNull:
+          path: spec.groupDN
+      - isNull:
+          path: spec.groupAttr
+      - isNull:
+          path: spec.groupFilter
+      - isNull:
+          path: spec.certificate
+      - isNull:
+          path: spec.clientTLSCert
+      - isNull:
+          path: spec.clientTLSKey
+      - isNull:
+          path: spec.tokenTTL
+      - isNull:
+          path: spec.tokenMaxTTL
+      - isNull:
+          path: spec.tokenPolicies
+      - isNull:
+          path: spec.tokenBoundCIDRs
+      - isNull:
+          path: spec.tokenExplicitMaxTTL
+      - isNull:
+          path: spec.tokenType
+      - isNull:
+          path: spec.bindCredentials
+      - isNull:
+          path: spec.connection
+      - isNull:
+          path: spec.tLSConfig
+
+  - it: should render TLS fields when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldaps://ldap.example.com:636
+          certificate: "-----BEGIN CERTIFICATE-----\nMIIBxTCCAW..."
+          clientTLSCert: "-----BEGIN CERTIFICATE-----\nMIIBxTCCAX..."
+          clientTLSKey: "-----BEGIN RSA PRIVATE KEY-----\nMIIEow..."
+          TLSMaxVersion: tls13
+          TLSMinVersion: tls12
+    asserts:
+      - equal:
+          path: spec.certificate
+          value: "-----BEGIN CERTIFICATE-----\nMIIBxTCCAW..."
+      - equal:
+          path: spec.clientTLSCert
+          value: "-----BEGIN CERTIFICATE-----\nMIIBxTCCAX..."
+      - equal:
+          path: spec.clientTLSKey
+          value: "-----BEGIN RSA PRIVATE KEY-----\nMIIEow..."
+      - equal:
+          path: spec.TLSMaxVersion
+          value: tls13
+      - equal:
+          path: spec.TLSMinVersion
+          value: tls12
+
+  - it: should render tLSConfig when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldaps://ldap.example.com:636
+          tLSConfig:
+            cacert: /etc/ssl/certs/ca.pem
+            skipVerify: false
+            tlsServerName: ldap.example.com
+            tlsSecret:
+              name: ldap-tls-secret
+    asserts:
+      - equal:
+          path: spec.tLSConfig.cacert
+          value: /etc/ssl/certs/ca.pem
+      - equal:
+          path: spec.tLSConfig.skipVerify
+          value: false
+      - equal:
+          path: spec.tLSConfig.tlsServerName
+          value: ldap.example.com
+      - equal:
+          path: spec.tLSConfig.tlsSecret.name
+          value: ldap-tls-secret
+
+  - it: should render token fields when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          tokenTTL: "1h"
+          tokenMaxTTL: "24h"
+          tokenPolicies: "default,admin"
+          tokenBoundCIDRs: "10.0.0.0/8,172.16.0.0/12"
+          tokenExplicitMaxTTL: "48h"
+          tokenNumUses: 10
+          tokenPeriod: 3600
+          tokenType: service
+          tokenNoDefaultPolicy: true
+    asserts:
+      - equal:
+          path: spec.tokenTTL
+          value: "1h"
+      - equal:
+          path: spec.tokenMaxTTL
+          value: "24h"
+      - equal:
+          path: spec.tokenPolicies
+          value: "default,admin"
+      - equal:
+          path: spec.tokenBoundCIDRs
+          value: "10.0.0.0/8,172.16.0.0/12"
+      - equal:
+          path: spec.tokenExplicitMaxTTL
+          value: "48h"
+      - equal:
+          path: spec.tokenNumUses
+          value: 10
+      - equal:
+          path: spec.tokenPeriod
+          value: 3600
+      - equal:
+          path: spec.tokenType
+          value: service
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: true
+
+  - it: should render bindCredentials with secret
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          bindCredentials:
+            secret:
+              name: ldap-bind-secret
+            passwordKey: ldap-password
+            usernameKey: ldap-username
+    asserts:
+      - equal:
+          path: spec.bindCredentials.secret.name
+          value: ldap-bind-secret
+      - equal:
+          path: spec.bindCredentials.passwordKey
+          value: ldap-password
+      - equal:
+          path: spec.bindCredentials.usernameKey
+          value: ldap-username
+      - isNull:
+          path: spec.bindCredentials.vaultSecret
+      - isNull:
+          path: spec.bindCredentials.randomSecret
+
+  - it: should render bindCredentials with vaultSecret
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          bindCredentials:
+            vaultSecret:
+              path: secret/data/ldap-bind
+    asserts:
+      - equal:
+          path: spec.bindCredentials.vaultSecret.path
+          value: secret/data/ldap-bind
+      - isNull:
+          path: spec.bindCredentials.secret
+      - isNull:
+          path: spec.bindCredentials.randomSecret
+
+  - it: should render bindCredentials with randomSecret
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          bindCredentials:
+            randomSecret:
+              name: ldap-random-creds
+    asserts:
+      - equal:
+          path: spec.bindCredentials.randomSecret.name
+          value: ldap-random-creds
+      - isNull:
+          path: spec.bindCredentials.secret
+      - isNull:
+          path: spec.bindCredentials.vaultSecret
+
+  - it: should apply default keys for bindCredentials
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          bindCredentials:
+            secret:
+              name: ldap-bind-secret
+    asserts:
+      - equal:
+          path: spec.bindCredentials.passwordKey
+          value: password
+      - equal:
+          path: spec.bindCredentials.usernameKey
+          value: username
+
+  - it: should render requestTimeout when overridden
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap.example.com
+          requestTimeout: "120s"
+    asserts:
+      - equal:
+          path: spec.requestTimeout
+          value: "120s"
+
+  - it: should fail when authentication.role is missing
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication: {}
+          path: ldap
+          url: ldap://ldap.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: "ldapAuthEngineConfigs.my-ldap.authentication.role is required"
+
+  - it: should fail when path is missing
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          url: ldap://ldap.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: "ldapAuthEngineConfigs.my-ldap.path is required"
+
+  - it: should render connection when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          path: ldap
+          url: ldap://ldap.example.com
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render authentication namespace when specified
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+            namespace: enterprise-ns
+          path: ldap
+    asserts:
+      - equal:
+          path: spec.authentication.namespace
+          value: enterprise-ns
+
+  - it: should render multiple resources
+    set:
+      ldapAuthEngineConfigs:
+        first-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+          url: ldap://ldap1.example.com
+        second-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap-corp
+          url: ldap://ldap2.example.com
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      ldapAuthEngineConfigs:
+        my-ldap:
+          authentication:
+            role: vault-admin
+          path: ldap
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
