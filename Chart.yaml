@@ -1,0 +1,16 @@
+apiVersion: v1
+name: VaultConfig
+version: 0.1.0
+appVersion: 0.8.42
+
+type: application
+
+home: https://github.com/Gilk260/helm-vault-config
+
+maintainers:
+  - name: Gilk
+    email: Gilk260@gmail.com
+
+keywords:
+  - secrets
+  - vault
