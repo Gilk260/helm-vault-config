@@ -1,0 +1,706 @@
+---
+suite: JWTOIDCAuthEngineRole
+templates:
+  - authengines/jwtoidcauthenginerole.yaml
+
+tests:
+  - it: should not render when jwtOidcAuthEngineRoles is empty
+    set:
+      jwtOidcAuthEngineRoles: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      jwtOidcAuthEngineRoles:
+        disabled-role: null
+        active-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: JWTOIDCAuthEngineRole
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      jwtOidcAuthEngineRoles:
+        reader-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-reader-role-jwtoidcauthenginerole$"
+
+  - it: should use dict key as vault role name by default
+    set:
+      jwtOidcAuthEngineRoles:
+        my-reader:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-reader
+
+  - it: should allow overriding vault role name
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          name: custom-vault-role-name
+          userClaim: sub
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-vault-role-name
+
+  - it: should apply sensible defaults
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should allow overriding authentication defaults
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+            namespace: vault-ns
+          path: jwt
+          userClaim: sub
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.authentication.namespace
+          value: vault-ns
+
+  - it: should not render authentication.namespace when not set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should fail when authentication.role is missing
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication: {}
+          path: jwt
+          userClaim: sub
+    asserts:
+      - failedTemplate:
+          errorMessage: "jwtOidcAuthEngineRoles.my-role.authentication.role is required"
+
+  - it: should fail when path is missing
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          userClaim: sub
+    asserts:
+      - failedTemplate:
+          errorMessage: "jwtOidcAuthEngineRoles.my-role.path is required"
+
+  - it: should fail when userClaim is missing
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+    asserts:
+      - failedTemplate:
+          errorMessage: "jwtOidcAuthEngineRoles.my-role.userClaim is required"
+
+  - it: should render roleType when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          roleType: oidc
+    asserts:
+      - equal:
+          path: spec.roleType
+          value: oidc
+
+  - it: should render boundAudiences when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          boundAudiences:
+            - "https://vault.example.com"
+            - "https://api.example.com"
+    asserts:
+      - equal:
+          path: spec.boundAudiences
+          value:
+            - "https://vault.example.com"
+            - "https://api.example.com"
+
+  - it: should render boundSubject when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          boundSubject: "user@example.com"
+    asserts:
+      - equal:
+          path: spec.boundSubject
+          value: "user@example.com"
+
+  - it: should render boundClaims when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          boundClaims:
+            groups: admin
+            department: engineering
+    asserts:
+      - equal:
+          path: spec.boundClaims.groups
+          value: admin
+      - equal:
+          path: spec.boundClaims.department
+          value: engineering
+
+  - it: should render boundClaimsType when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          boundClaimsType: glob
+    asserts:
+      - equal:
+          path: spec.boundClaimsType
+          value: glob
+
+  - it: should render claimMappings when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          claimMappings:
+            email: email
+            groups: groups
+    asserts:
+      - equal:
+          path: spec.claimMappings.email
+          value: email
+      - equal:
+          path: spec.claimMappings.groups
+          value: groups
+
+  - it: should render groupsClaim when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          groupsClaim: groups
+    asserts:
+      - equal:
+          path: spec.groupsClaim
+          value: groups
+
+  - it: should render clockSkewLeeway when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          clockSkewLeeway: 120
+    asserts:
+      - equal:
+          path: spec.clockSkewLeeway
+          value: 120
+
+  - it: should render expirationLeeway when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          expirationLeeway: 300
+    asserts:
+      - equal:
+          path: spec.expirationLeeway
+          value: 300
+
+  - it: should render notBeforeLeeway when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          notBeforeLeeway: 150
+    asserts:
+      - equal:
+          path: spec.notBeforeLeeway
+          value: 150
+
+  - it: should render maxage when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          maxage: 3600
+    asserts:
+      - equal:
+          path: spec.maxage
+          value: 3600
+
+  - it: should render OIDCScopes when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          OIDCScopes:
+            - profile
+            - email
+    asserts:
+      - equal:
+          path: spec.OIDCScopes
+          value:
+            - profile
+            - email
+
+  - it: should render allowedRedirectURIs when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          allowedRedirectURIs:
+            - "https://vault.example.com/ui/vault/auth/oidc/oidc/callback"
+            - "http://localhost:8250/oidc/callback"
+    asserts:
+      - equal:
+          path: spec.allowedRedirectURIs
+          value:
+            - "https://vault.example.com/ui/vault/auth/oidc/oidc/callback"
+            - "http://localhost:8250/oidc/callback"
+
+  - it: should render userClaimJSONPointer when explicitly set to true
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: "/nested/claim"
+          userClaimJSONPointer: true
+    asserts:
+      - equal:
+          path: spec.userClaimJSONPointer
+          value: true
+
+  - it: should render userClaimJSONPointer when explicitly set to false
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          userClaimJSONPointer: false
+    asserts:
+      - equal:
+          path: spec.userClaimJSONPointer
+          value: false
+
+  - it: should not render userClaimJSONPointer when not set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.userClaimJSONPointer
+
+  - it: should render verboseOIDCLogging when explicitly set to true
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          verboseOIDCLogging: true
+    asserts:
+      - equal:
+          path: spec.verboseOIDCLogging
+          value: true
+
+  - it: should not render verboseOIDCLogging when not set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.verboseOIDCLogging
+
+  - it: should render tokenTTL when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenTTL: "1h"
+    asserts:
+      - equal:
+          path: spec.tokenTTL
+          value: "1h"
+
+  - it: should render tokenMaxTTL when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenMaxTTL: "24h"
+    asserts:
+      - equal:
+          path: spec.tokenMaxTTL
+          value: "24h"
+
+  - it: should render tokenExplicitMaxTTL when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenExplicitMaxTTL: "48h"
+    asserts:
+      - equal:
+          path: spec.tokenExplicitMaxTTL
+          value: "48h"
+
+  - it: should render tokenType when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenType: batch
+    asserts:
+      - equal:
+          path: spec.tokenType
+          value: batch
+
+  - it: should render tokenPolicies when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenPolicies:
+            - reader
+            - writer
+    asserts:
+      - equal:
+          path: spec.tokenPolicies
+          value:
+            - reader
+            - writer
+
+  - it: should render tokenBoundCIDRs when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenBoundCIDRs:
+            - "10.0.0.0/16"
+            - "192.168.1.0/24"
+    asserts:
+      - equal:
+          path: spec.tokenBoundCIDRs
+          value:
+            - "10.0.0.0/16"
+            - "192.168.1.0/24"
+
+  - it: should render tokenNumUses when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenNumUses: 10
+    asserts:
+      - equal:
+          path: spec.tokenNumUses
+          value: 10
+
+  - it: should render tokenPeriod when set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenPeriod: 3600
+    asserts:
+      - equal:
+          path: spec.tokenPeriod
+          value: 3600
+
+  - it: should render tokenNoDefaultPolicy when explicitly set to true
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenNoDefaultPolicy: true
+    asserts:
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: true
+
+  - it: should not render tokenNoDefaultPolicy when not set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.tokenNoDefaultPolicy
+
+  - it: should not render optional fields when not set
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.roleType
+      - isNull:
+          path: spec.boundAudiences
+      - isNull:
+          path: spec.boundSubject
+      - isNull:
+          path: spec.boundClaims
+      - isNull:
+          path: spec.boundClaimsType
+      - isNull:
+          path: spec.claimMappings
+      - isNull:
+          path: spec.groupsClaim
+      - isNull:
+          path: spec.clockSkewLeeway
+      - isNull:
+          path: spec.expirationLeeway
+      - isNull:
+          path: spec.notBeforeLeeway
+      - isNull:
+          path: spec.maxage
+      - isNull:
+          path: spec.OIDCScopes
+      - isNull:
+          path: spec.allowedRedirectURIs
+      - isNull:
+          path: spec.tokenTTL
+      - isNull:
+          path: spec.tokenMaxTTL
+      - isNull:
+          path: spec.tokenExplicitMaxTTL
+      - isNull:
+          path: spec.tokenType
+      - isNull:
+          path: spec.tokenPolicies
+      - isNull:
+          path: spec.tokenBoundCIDRs
+      - isNull:
+          path: spec.tokenNumUses
+      - isNull:
+          path: spec.tokenPeriod
+      - isNull:
+          path: spec.connection
+
+  - it: should render connection when specified
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          path: jwt
+          userClaim: sub
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      jwtOidcAuthEngineRoles:
+        reader-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+          tokenPolicies:
+            - reader
+        writer-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: email
+          tokenPolicies:
+            - writer
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      jwtOidcAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          path: jwt
+          userClaim: sub
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

@@ -1,0 +1,487 @@
+---
+suite: JWTOIDCAuthEngineConfig
+templates:
+  - authengines/jwtoidcauthengineconfig.yaml
+
+tests:
+  - it: should not render when jwtOidcAuthEngineConfigs is empty
+    set:
+      jwtOidcAuthEngineConfigs: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      jwtOidcAuthEngineConfigs:
+        disabled-config: null
+        active-config:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: JWTOIDCAuthEngineConfig
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      jwtOidcAuthEngineConfigs:
+        google-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-google-oidc-jwtoidcauthengineconfig$"
+
+  - it: should apply sensible defaults
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should allow overriding authentication defaults
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+            namespace: vault-ns
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.authentication.namespace
+          value: vault-ns
+
+  - it: should not render authentication.namespace when not set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should fail when authentication.role is missing
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication: {}
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - failedTemplate:
+          errorMessage: "jwtOidcAuthEngineConfigs.my-oidc.authentication.role is required"
+
+  - it: should fail when path is missing
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - failedTemplate:
+          errorMessage: "jwtOidcAuthEngineConfigs.my-oidc.path is required"
+
+  - it: should render OIDCDiscoveryURL when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryURL: "https://accounts.google.com"
+    asserts:
+      - equal:
+          path: spec.OIDCDiscoveryURL
+          value: "https://accounts.google.com"
+
+  - it: should render OIDCDiscoveryCAPEM when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCDiscoveryCAPEM: "-----BEGIN CERTIFICATE-----\nMIIBxTCCA..."
+    asserts:
+      - equal:
+          path: spec.OIDCDiscoveryCAPEM
+          value: "-----BEGIN CERTIFICATE-----\nMIIBxTCCA..."
+
+  - it: should render OIDCClientID when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCClientID: "my-client-id"
+    asserts:
+      - equal:
+          path: spec.OIDCClientID
+          value: "my-client-id"
+
+  - it: should render OIDCCredentials with secret
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCCredentials:
+            passwordKey: client-secret
+            usernameKey: client-id
+            secret:
+              name: my-oidc-secret
+    asserts:
+      - equal:
+          path: spec.OIDCCredentials.passwordKey
+          value: client-secret
+      - equal:
+          path: spec.OIDCCredentials.usernameKey
+          value: client-id
+      - equal:
+          path: spec.OIDCCredentials.secret.name
+          value: my-oidc-secret
+
+  - it: should render OIDCCredentials with vaultSecret
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCCredentials:
+            vaultSecret:
+              path: secret/data/oidc-creds
+    asserts:
+      - equal:
+          path: spec.OIDCCredentials.vaultSecret.path
+          value: secret/data/oidc-creds
+
+  - it: should render OIDCCredentials with randomSecret
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCCredentials:
+            randomSecret:
+              name: my-random-secret
+    asserts:
+      - equal:
+          path: spec.OIDCCredentials.randomSecret.name
+          value: my-random-secret
+
+  - it: should render OIDCResponseMode when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCResponseMode: form_post
+    asserts:
+      - equal:
+          path: spec.OIDCResponseMode
+          value: form_post
+
+  - it: should render OIDCResponseTypes when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          OIDCResponseTypes:
+            - code
+            - id_token
+    asserts:
+      - equal:
+          path: spec.OIDCResponseTypes
+          value:
+            - code
+            - id_token
+
+  - it: should render JWKSURL when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-jwt:
+          authentication:
+            role: vault-admin
+          path: jwt
+          JWKSURL: "https://example.com/.well-known/jwks.json"
+    asserts:
+      - equal:
+          path: spec.JWKSURL
+          value: "https://example.com/.well-known/jwks.json"
+
+  - it: should render JWKSCAPEM when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-jwt:
+          authentication:
+            role: vault-admin
+          path: jwt
+          JWKSCAPEM: "-----BEGIN CERTIFICATE-----\nMIIBxTCCA..."
+    asserts:
+      - equal:
+          path: spec.JWKSCAPEM
+          value: "-----BEGIN CERTIFICATE-----\nMIIBxTCCA..."
+
+  - it: should render JWTValidationPubKeys when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-jwt:
+          authentication:
+            role: vault-admin
+          path: jwt
+          JWTValidationPubKeys:
+            - "-----BEGIN PUBLIC KEY-----\nMIIBIjANBg..."
+    asserts:
+      - equal:
+          path: spec.JWTValidationPubKeys
+          value:
+            - "-----BEGIN PUBLIC KEY-----\nMIIBIjANBg..."
+
+  - it: should render JWTSupportedAlgs when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-jwt:
+          authentication:
+            role: vault-admin
+          path: jwt
+          JWTSupportedAlgs:
+            - RS256
+            - ES256
+    asserts:
+      - equal:
+          path: spec.JWTSupportedAlgs
+          value:
+            - RS256
+            - ES256
+
+  - it: should render boundIssuer when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          boundIssuer: "https://accounts.google.com"
+    asserts:
+      - equal:
+          path: spec.boundIssuer
+          value: "https://accounts.google.com"
+
+  - it: should render defaultRole when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          defaultRole: my-default-role
+    asserts:
+      - equal:
+          path: spec.defaultRole
+          value: my-default-role
+
+  - it: should render namespaceInState when explicitly set to true
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          namespaceInState: true
+    asserts:
+      - equal:
+          path: spec.namespaceInState
+          value: true
+
+  - it: should render namespaceInState when explicitly set to false
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          namespaceInState: false
+    asserts:
+      - equal:
+          path: spec.namespaceInState
+          value: false
+
+  - it: should not render namespaceInState when not set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+    asserts:
+      - isNull:
+          path: spec.namespaceInState
+
+  - it: should render providerConfig when set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+          providerConfig:
+            provider: azure
+            extraConfig: value
+    asserts:
+      - equal:
+          path: spec.providerConfig.provider
+          value: azure
+      - equal:
+          path: spec.providerConfig.extraConfig
+          value: value
+
+  - it: should not render optional OIDC fields when not set
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-jwt:
+          authentication:
+            role: vault-admin
+          path: jwt
+    asserts:
+      - isNull:
+          path: spec.OIDCDiscoveryURL
+      - isNull:
+          path: spec.OIDCDiscoveryCAPEM
+      - isNull:
+          path: spec.OIDCClientID
+      - isNull:
+          path: spec.OIDCCredentials
+      - isNull:
+          path: spec.OIDCResponseMode
+      - isNull:
+          path: spec.OIDCResponseTypes
+      - isNull:
+          path: spec.JWKSURL
+      - isNull:
+          path: spec.JWKSCAPEM
+      - isNull:
+          path: spec.JWTValidationPubKeys
+      - isNull:
+          path: spec.JWTSupportedAlgs
+      - isNull:
+          path: spec.boundIssuer
+      - isNull:
+          path: spec.defaultRole
+      - isNull:
+          path: spec.providerConfig
+
+  - it: should render connection when specified
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          path: jwt
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      jwtOidcAuthEngineConfigs:
+        google-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt-google
+          OIDCDiscoveryURL: "https://accounts.google.com"
+        github-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt-github
+          OIDCDiscoveryURL: "https://token.actions.githubusercontent.com"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      jwtOidcAuthEngineConfigs:
+        my-oidc:
+          authentication:
+            role: vault-admin
+          path: jwt
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
