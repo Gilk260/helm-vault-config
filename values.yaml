@@ -5,3 +5,9 @@ fullnameOverride: ""
 randomSecrets: {}
 
 vaultSecrets: {}
+
+databaseSecretEngineConfigs: {}
+
+databaseSecretEngineRoles: {}
+
+databaseSecretEngineStaticRoles: {}
