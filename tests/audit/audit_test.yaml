@@ -1,0 +1,436 @@
+---
+suite: Audit
+templates:
+  - audit/audits.yaml
+
+tests:
+  - it: should not render when audits is empty
+    set:
+      audits: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      audits:
+        disabled-audit: null
+        active-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: Audit
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      audits:
+        file-log:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-file-log-audit$"
+
+  - it: should apply sensible defaults
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should allow overriding authentication defaults
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+            namespace: admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.authentication.namespace
+          value: admin
+
+  - it: should not render namespace when not specified
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should render all audit types
+    documentIndex: 0
+    set:
+      audits:
+        file-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file
+          options:
+            file_path: /vault/audit/audit.log
+        socket-audit:
+          authentication:
+            role: vault-admin
+          type: socket
+          path: socket
+          options:
+            address: 127.0.0.1:9090
+            socket_type: tcp
+        syslog-audit:
+          authentication:
+            role: vault-admin
+          type: syslog
+          path: syslog
+          options:
+            tag: vault
+    asserts:
+      - hasDocuments:
+          count: 3
+
+  - it: should render type field
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: syslog
+          path: syslog-audit
+          options:
+            tag: vault
+    asserts:
+      - equal:
+          path: spec.type
+          value: syslog
+
+  - it: should render path field
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: custom/path
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.path
+          value: custom/path
+
+  - it: should render options as map
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+            log_raw: "true"
+            mode: "0600"
+    asserts:
+      - equal:
+          path: spec.options.file_path
+          value: /vault/audit/audit.log
+      - equal:
+          path: spec.options.log_raw
+          value: "true"
+      - equal:
+          path: spec.options.mode
+          value: "0600"
+
+  - it: should render description when set
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          description: Primary file audit device
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.description
+          value: Primary file audit device
+
+  - it: should not render description when not set
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isNull:
+          path: spec.description
+
+  - it: should render local when set to true
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          local: true
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.local
+          value: true
+
+  - it: should render local when set to false
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          local: false
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.local
+          value: false
+
+  - it: should not render local when not specified
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isNull:
+          path: spec.local
+
+  - it: should render connection when specified
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render connection with tLSConfig
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "https://openbao.openbao.svc:8200"
+            tLSConfig:
+              cacert: /etc/ssl/certs/ca.pem
+              skipVerify: false
+              tlsServerName: openbao.example.com
+              tlsSecret:
+                name: vault-tls
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - equal:
+          path: spec.connection.tLSConfig.cacert
+          value: /etc/ssl/certs/ca.pem
+      - equal:
+          path: spec.connection.tLSConfig.skipVerify
+          value: false
+      - equal:
+          path: spec.connection.tLSConfig.tlsServerName
+          value: openbao.example.com
+      - equal:
+          path: spec.connection.tLSConfig.tlsSecret.name
+          value: vault-tls
+
+  - it: should fail when authentication.role is missing
+    set:
+      audits:
+        my-audit:
+          authentication: {}
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - failedTemplate:
+          errorMessage: "audits.my-audit.authentication.role is required"
+
+  - it: should fail when type is missing
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - failedTemplate:
+          errorMessage: "audits.my-audit.type is required"
+
+  - it: should fail when path is missing
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - failedTemplate:
+          errorMessage: "audits.my-audit.path is required"
+
+  - it: should fail when options is missing
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+    asserts:
+      - failedTemplate:
+          errorMessage: "audits.my-audit.options is required"
+
+  - it: should render multiple resources
+    set:
+      audits:
+        first-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file
+          options:
+            file_path: /vault/audit/audit.log
+        second-audit:
+          authentication:
+            role: vault-admin
+          type: syslog
+          path: syslog
+          options:
+            tag: vault
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      audits:
+        my-audit:
+          authentication:
+            role: vault-admin
+          type: file
+          path: file-audit
+          options:
+            file_path: /vault/audit/audit.log
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

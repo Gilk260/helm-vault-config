@@ -1,0 +1,48 @@
+{{- range $name, $config := .Values.audits }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Audit
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "audit") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "audits.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  type: {{ required (printf "audits.%s.type is required" $name) $config.type | quote }}
+  path: {{ required (printf "audits.%s.path is required" $name) $config.path | quote }}
+  options:
+    {{- if not $config.options }}
+    {{- fail (printf "audits.%s.options is required" $name) }}
+    {{- end }}
+    {{- toYaml $config.options | nindent 4 }}
+  {{- with $config.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if hasKey ($config) "local" }}
+  local: {{ $config.local }}
+  {{- end }}
+{{- end }}
+{{- end }}
