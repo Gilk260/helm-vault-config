@@ -1,0 +1,177 @@
+---
+suite: IdentityOIDCScope
+templates:
+  - identity/identityoidcscopes.yaml
+
+tests:
+  - it: should not render when identityOidcScopes is empty
+    set:
+      identityOidcScopes: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityOidcScopes:
+        disabled-scope: null
+        active-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityOIDCScope
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityOidcScopes:
+        profile:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-profile-identityoidcscope$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityOidcScopes:
+        profile:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: profile
+
+  - it: should allow overriding vault name
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+          name: custom-scope-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-scope-name
+
+  - it: should apply sensible defaults
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityOidcScopes.my-scope.authentication.role is required"
+
+  - it: should render description when specified
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+          description: "User profile information"
+    asserts:
+      - equal:
+          path: spec.description
+          value: "User profile information"
+
+  - it: should not render description when not specified
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.description
+
+  - it: should render template when specified
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+          template: '{"username":{{identity.entity.name}}}'
+    asserts:
+      - equal:
+          path: spec.template
+          value: '{"username":{{identity.entity.name}}}'
+
+  - it: should not render template when not specified
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.template
+
+  - it: should render connection when specified
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should render multiple resources
+    set:
+      identityOidcScopes:
+        first-scope:
+          authentication:
+            role: vault-admin
+        second-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityOidcScopes:
+        my-scope:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

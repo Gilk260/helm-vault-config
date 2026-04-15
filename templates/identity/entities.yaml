@@ -1,17 +1,17 @@
-{{- range $name, $config := .Values.identityOidcProviders }}
+{{- range $name, $config := .Values.entities }}
 {{- if $config }}
 ---
 apiVersion: redhatcop.redhat.io/v1alpha1
-kind: IdentityOIDCProvider
+kind: Entity
 metadata:
-  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "identityoidcprovider") }}
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "entity") }}
   namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "vault-config.labels" $ | nindent 4 }}
 spec:
   authentication:
     path: {{ default "kubernetes" $config.authentication.path | quote }}
-    role: {{ required (printf "identityOidcProviders.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    role: {{ required (printf "entities.%s.authentication.role is required" $name) $config.authentication.role | quote }}
     serviceAccount:
       name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
     {{- with $config.authentication.namespace }}
@@ -32,15 +32,13 @@ spec:
     {{- end }}
   {{- end }}
   name: {{ default $name $config.name | quote }}
-  {{- with $config.issuer }}
-  issuer: {{ . | quote }}
-  {{- end }}
-  {{- with $config.allowedClientIDs }}
-  allowedClientIDs:
+  disabled: {{ ternary $config.disabled false (hasKey $config "disabled") }}
+  {{- with $config.policies }}
+  policies:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with $config.scopesSupported }}
-  scopesSupported:
+  {{- with $config.metadata }}
+  metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}

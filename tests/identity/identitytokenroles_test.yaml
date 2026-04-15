@@ -1,0 +1,238 @@
+---
+suite: IdentityTokenRole
+templates:
+  - identity/identitytokenroles.yaml
+
+tests:
+  - it: should not render when identityTokenRoles is empty
+    set:
+      identityTokenRoles: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityTokenRoles:
+        disabled-role: null
+        active-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityTokenRole
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-my-role-identitytokenrole$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-role
+
+  - it: should allow overriding vault name
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+          name: custom-role-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-role-name
+
+  - it: should apply sensible defaults
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.ttl
+          value: "24h"
+
+  - it: should allow overriding all defaults
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          key: my-key
+          ttl: 1h
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.ttl
+          value: "1h"
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication: {}
+          key: default
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityTokenRoles.my-role.authentication.role is required"
+
+  - it: should fail when key is missing
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityTokenRoles.my-role.key is required"
+
+  - it: should render clientID when specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+          clientID: my-custom-client-id
+    asserts:
+      - equal:
+          path: spec.clientID
+          value: my-custom-client-id
+
+  - it: should not render clientID when not specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - isNull:
+          path: spec.clientID
+
+  - it: should render template when specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+          template: '{"username":{{identity.entity.name}}}'
+    asserts:
+      - equal:
+          path: spec.template
+          value: '{"username":{{identity.entity.name}}}'
+
+  - it: should not render template when not specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - isNull:
+          path: spec.template
+
+  - it: should render connection when specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      identityTokenRoles:
+        first-role:
+          authentication:
+            role: vault-admin
+          key: default
+        second-role:
+          authentication:
+            role: vault-admin
+          key: my-key
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityTokenRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          key: default
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

@@ -1,0 +1,207 @@
+---
+suite: IdentityTokenKey
+templates:
+  - identity/identitytokenkeys.yaml
+
+tests:
+  - it: should not render when identityTokenKeys is empty
+    set:
+      identityTokenKeys: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityTokenKeys:
+        disabled-key: null
+        active-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityTokenKey
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityTokenKeys:
+        signing-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-signing-key-identitytokenkey$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityTokenKeys:
+        signing-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: signing-key
+
+  - it: should allow overriding vault name
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+          name: custom-key-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-key-name
+
+  - it: should apply sensible defaults
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.algorithm
+          value: RS256
+      - equal:
+          path: spec.rotationPeriod
+          value: "24h"
+      - equal:
+          path: spec.verificationTTL
+          value: "24h"
+
+  - it: should allow overriding all defaults
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          algorithm: ES256
+          rotationPeriod: 48h
+          verificationTTL: 72h
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.algorithm
+          value: ES256
+      - equal:
+          path: spec.rotationPeriod
+          value: "48h"
+      - equal:
+          path: spec.verificationTTL
+          value: "72h"
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityTokenKeys.my-key.authentication.role is required"
+
+  - it: should render allowedClientIDs when specified
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+          allowedClientIDs:
+            - client-1
+            - "*"
+    asserts:
+      - equal:
+          path: spec.allowedClientIDs
+          value:
+            - client-1
+            - "*"
+
+  - it: should not render allowedClientIDs when not specified
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.allowedClientIDs
+
+  - it: should render connection when specified
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      identityTokenKeys:
+        first-key:
+          authentication:
+            role: vault-admin
+        second-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityTokenKeys:
+        my-key:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

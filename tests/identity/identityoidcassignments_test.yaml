@@ -1,0 +1,195 @@
+---
+suite: IdentityOIDCAssignment
+templates:
+  - identity/identityoidcassignments.yaml
+
+tests:
+  - it: should not render when identityOidcAssignments is empty
+    set:
+      identityOidcAssignments: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      identityOidcAssignments:
+        disabled-assignment: null
+        active-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: IdentityOIDCAssignment
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-my-assignment-identityoidcassignment$"
+
+  - it: should use dict key as vault name by default
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-assignment
+
+  - it: should allow overriding vault name
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+          name: custom-assignment-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-assignment-name
+
+  - it: should apply sensible defaults
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should fail when authentication.role is missing
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "identityOidcAssignments.my-assignment.authentication.role is required"
+
+  - it: should render entityIDs when specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+          entityIDs:
+            - entity-id-1
+            - entity-id-2
+    asserts:
+      - equal:
+          path: spec.entityIDs
+          value:
+            - entity-id-1
+            - entity-id-2
+
+  - it: should not render entityIDs when not specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.entityIDs
+
+  - it: should render groupIDs when specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+          groupIDs:
+            - group-id-1
+            - group-id-2
+    asserts:
+      - equal:
+          path: spec.groupIDs
+          value:
+            - group-id-1
+            - group-id-2
+
+  - it: should not render groupIDs when not specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.groupIDs
+
+  - it: should render connection when specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      identityOidcAssignments:
+        first-assignment:
+          authentication:
+            role: vault-admin
+        second-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      identityOidcAssignments:
+        my-assignment:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

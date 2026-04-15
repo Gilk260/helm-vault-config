@@ -1,17 +1,17 @@
-{{- range $name, $config := .Values.identityOidcProviders }}
+{{- range $name, $config := .Values.identityTokenKeys }}
 {{- if $config }}
 ---
 apiVersion: redhatcop.redhat.io/v1alpha1
-kind: IdentityOIDCProvider
+kind: IdentityTokenKey
 metadata:
-  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "identityoidcprovider") }}
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "identitytokenkey") }}
   namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "vault-config.labels" $ | nindent 4 }}
 spec:
   authentication:
     path: {{ default "kubernetes" $config.authentication.path | quote }}
-    role: {{ required (printf "identityOidcProviders.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    role: {{ required (printf "identityTokenKeys.%s.authentication.role is required" $name) $config.authentication.role | quote }}
     serviceAccount:
       name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
     {{- with $config.authentication.namespace }}
@@ -32,15 +32,11 @@ spec:
     {{- end }}
   {{- end }}
   name: {{ default $name $config.name | quote }}
-  {{- with $config.issuer }}
-  issuer: {{ . | quote }}
-  {{- end }}
+  algorithm: {{ default "RS256" $config.algorithm | quote }}
+  rotationPeriod: {{ default "24h" $config.rotationPeriod | quote }}
+  verificationTTL: {{ default "24h" $config.verificationTTL | quote }}
   {{- with $config.allowedClientIDs }}
   allowedClientIDs:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with $config.scopesSupported }}
-  scopesSupported:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}

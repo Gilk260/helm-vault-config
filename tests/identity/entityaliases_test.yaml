@@ -1,0 +1,220 @@
+---
+suite: EntityAlias
+templates:
+  - identity/entityaliases.yaml
+
+tests:
+  - it: should not render when entityAliases is empty
+    set:
+      entityAliases: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      entityAliases:
+        disabled-alias: null
+        active-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: EntityAlias
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      entityAliases:
+        bob-k8s:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-bob-k8s-entityalias$"
+
+  - it: should use dict key as vault name by default
+    set:
+      entityAliases:
+        bob-k8s:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - equal:
+          path: spec.name
+          value: bob-k8s
+
+  - it: should allow overriding vault name
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+          name: custom-alias-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-alias-name
+
+  - it: should apply sensible defaults
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+
+  - it: should fail when authentication.role is missing
+    set:
+      entityAliases:
+        my-alias:
+          authentication: {}
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - failedTemplate:
+          errorMessage: "entityAliases.my-alias.authentication.role is required"
+
+  - it: should fail when authEngineMountPath is missing
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          entityName: bob
+    asserts:
+      - failedTemplate:
+          errorMessage: "entityAliases.my-alias.authEngineMountPath is required"
+
+  - it: should fail when entityName is missing
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+    asserts:
+      - failedTemplate:
+          errorMessage: "entityAliases.my-alias.entityName is required"
+
+  - it: should render customMetadata when specified
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+          customMetadata:
+            source: ldap
+            department: engineering
+    asserts:
+      - equal:
+          path: spec.customMetadata.source
+          value: ldap
+      - equal:
+          path: spec.customMetadata.department
+          value: engineering
+
+  - it: should not render customMetadata when not specified
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - isNull:
+          path: spec.customMetadata
+
+  - it: should render connection when specified
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+
+  - it: should not render connection when not specified
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      entityAliases:
+        first-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+        second-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/ldap
+          entityName: alice
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      entityAliases:
+        my-alias:
+          authentication:
+            role: vault-admin
+          authEngineMountPath: auth/kubernetes
+          entityName: bob
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
