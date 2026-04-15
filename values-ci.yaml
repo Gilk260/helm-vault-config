@@ -9,3 +9,25 @@ randomSecrets:
     # isKVSecretsEngineV2: false
     secretFormat:
       passwordPolicyName: default-password
+
+quaySecretEngineConfigs:
+  ci-quay:
+    authentication:
+      role: vault-ci
+    path: quay
+    url: "https://quay.example.com"
+
+quaySecretEngineRoles:
+  ci-quay-role:
+    authentication:
+      role: vault-ci
+    path: quay
+    namespaceName: my-org
+    namespaceType: organization
+
+quaySecretEngineStaticRoles:
+  ci-quay-static:
+    authentication:
+      role: vault-ci
+    path: quay
+    namespaceName: my-org
