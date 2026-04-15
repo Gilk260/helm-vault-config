@@ -2,6 +2,10 @@
 nameOverride: ""
 fullnameOverride: ""
 
+ldapAuthEngineConfigs: {}
+
+ldapAuthEngineGroups: {}
+
 randomSecrets: {}
 
 vaultSecrets: {}
