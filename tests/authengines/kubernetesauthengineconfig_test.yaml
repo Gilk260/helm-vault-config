@@ -1,0 +1,363 @@
+---
+suite: KubernetesAuthEngineConfig
+templates:
+  - authengines/kubernetesauthengineconfig.yaml
+
+tests:
+  - it: should not render when kubernetesAuthEngineConfigs is empty
+    set:
+      kubernetesAuthEngineConfigs: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      kubernetesAuthEngineConfigs:
+        disabled-config: null
+        active-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: KubernetesAuthEngineConfig
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      kubernetesAuthEngineConfigs:
+        my-kube-auth:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-my-kube-auth-kubernetesauthengineconfig$"
+
+  - it: should apply sensible defaults
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.path
+          value: kubernetes
+      - equal:
+          path: spec.kubernetesHost
+          value: "https://kubernetes.default.svc:443"
+
+  - it: should allow overriding all defaults
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          path: custom-kube
+          kubernetesHost: "https://k8s.example.com:6443"
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.path
+          value: custom-kube
+      - equal:
+          path: spec.kubernetesHost
+          value: "https://k8s.example.com:6443"
+
+  - it: should fail when authentication.role is missing
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "kubernetesAuthEngineConfigs.my-config.authentication.role is required"
+
+  - it: should render authentication namespace when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+            namespace: vault-ns
+    asserts:
+      - equal:
+          path: spec.authentication.namespace
+          value: vault-ns
+
+  - it: should not render authentication namespace when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should render kubernetesCACert when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          kubernetesCACert: "-----BEGIN CERTIFICATE-----\nMIIBmjCC..."
+    asserts:
+      - equal:
+          path: spec.kubernetesCACert
+          value: "-----BEGIN CERTIFICATE-----\nMIIBmjCC..."
+
+  - it: should not render kubernetesCACert when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.kubernetesCACert
+
+  - it: should render PEMKeys when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          PEMKeys:
+            - "-----BEGIN PUBLIC KEY-----\nkey1..."
+            - "-----BEGIN PUBLIC KEY-----\nkey2..."
+    asserts:
+      - equal:
+          path: spec.PEMKeys
+          value:
+            - "-----BEGIN PUBLIC KEY-----\nkey1..."
+            - "-----BEGIN PUBLIC KEY-----\nkey2..."
+
+  - it: should not render PEMKeys when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.PEMKeys
+
+  - it: should render issuer when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          issuer: "https://kubernetes.default.svc.cluster.local"
+    asserts:
+      - equal:
+          path: spec.issuer
+          value: "https://kubernetes.default.svc.cluster.local"
+
+  - it: should not render issuer when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.issuer
+
+  - it: should render disableISSValidation when true
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          disableISSValidation: true
+    asserts:
+      - equal:
+          path: spec.disableISSValidation
+          value: true
+
+  - it: should not render disableISSValidation when false (default)
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.disableISSValidation
+
+  - it: should render disableLocalCAJWT when true
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          disableLocalCAJWT: true
+    asserts:
+      - equal:
+          path: spec.disableLocalCAJWT
+          value: true
+
+  - it: should not render disableLocalCAJWT when false (default)
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.disableLocalCAJWT
+
+  - it: should render useAnnotationsAsAliasMetadata when true
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          useAnnotationsAsAliasMetadata: true
+    asserts:
+      - equal:
+          path: spec.useAnnotationsAsAliasMetadata
+          value: true
+
+  - it: should not render useAnnotationsAsAliasMetadata when false (default)
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.useAnnotationsAsAliasMetadata
+
+  - it: should render tokenReviewerServiceAccount when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          tokenReviewerServiceAccount:
+            name: token-reviewer
+    asserts:
+      - equal:
+          path: spec.tokenReviewerServiceAccount.name
+          value: token-reviewer
+
+  - it: should not render tokenReviewerServiceAccount when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.tokenReviewerServiceAccount
+
+  - it: should render name when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          name: custom-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-name
+
+  - it: should not render name when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.name
+
+  - it: should render connection when specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      kubernetesAuthEngineConfigs:
+        first-config:
+          authentication:
+            role: vault-admin
+        second-config:
+          authentication:
+            role: app-role
+          kubernetesHost: "https://k8s.example.com:6443"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      kubernetesAuthEngineConfigs:
+        my-config:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
