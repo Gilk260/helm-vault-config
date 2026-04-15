@@ -1,0 +1,393 @@
+---
+suite: KubernetesAuthEngineRole
+templates:
+  - authengines/kubernetesauthenginerole.yaml
+
+tests:
+  - it: should not render when kubernetesAuthEngineRoles is empty
+    set:
+      kubernetesAuthEngineRoles: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      kubernetesAuthEngineRoles:
+        disabled-role: null
+        active-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: KubernetesAuthEngineRole
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      kubernetesAuthEngineRoles:
+        app-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-app-role-kubernetesauthenginerole$"
+
+  - it: should use dict key as vault name by default
+    set:
+      kubernetesAuthEngineRoles:
+        my-app-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-app-role
+
+  - it: should allow overriding vault name
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          name: custom-name
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-name
+
+  - it: should apply sensible defaults
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.path
+          value: kubernetes
+      - equal:
+          path: spec.targetServiceAccounts
+          value:
+            - default
+
+  - it: should allow overriding all defaults
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          path: custom-mount
+          targetServiceAccounts:
+            - app-sa
+            - worker-sa
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.path
+          value: custom-mount
+      - equal:
+          path: spec.targetServiceAccounts
+          value:
+            - app-sa
+            - worker-sa
+
+  - it: should fail when policies is missing
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          targetNamespaces:
+            - default
+    asserts:
+      - failedTemplate:
+          errorMessage: "kubernetesAuthEngineRoles.my-role.policies is required"
+
+  - it: should render targetNamespaces when set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - app-ns
+            - monitoring
+    asserts:
+      - equal:
+          path: spec.targetNamespaces.targetNamespaces
+          value:
+            - app-ns
+            - monitoring
+      - isNull:
+          path: spec.targetNamespaces.targetNamespaceSelector
+
+  - it: should render targetNamespaceSelector when set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaceSelector:
+            matchLabels:
+              env: dev
+    asserts:
+      - equal:
+          path: spec.targetNamespaces.targetNamespaceSelector.matchLabels.env
+          value: dev
+      - isNull:
+          path: spec.targetNamespaces.targetNamespaces
+
+  - it: should fail when both targetNamespaces and targetNamespaceSelector are set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+          targetNamespaceSelector:
+            matchLabels:
+              env: dev
+    asserts:
+      - failedTemplate:
+          errorMessage: "kubernetesAuthEngineRoles.my-role: specify exactly one of targetNamespaces or targetNamespaceSelector"
+
+  - it: should fail when neither targetNamespaces nor targetNamespaceSelector is set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+    asserts:
+      - failedTemplate:
+          errorMessage: "kubernetesAuthEngineRoles.my-role: one of targetNamespaces or targetNamespaceSelector is required"
+
+  - it: should not render token fields when not set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - isNull:
+          path: spec.audience
+      - isNull:
+          path: spec.aliasNameSource
+      - isNull:
+          path: spec.tokenTTL
+      - isNull:
+          path: spec.tokenMaxTTL
+      - isNull:
+          path: spec.tokenBoundCIDRs
+      - isNull:
+          path: spec.tokenExplicitMaxTTL
+      - isNull:
+          path: spec.tokenNoDefaultPolicy
+      - isNull:
+          path: spec.tokenNumUses
+      - isNull:
+          path: spec.tokenPeriod
+      - isNull:
+          path: spec.tokenType
+
+  - it: should render all token fields when set
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+          audience: "https://kubernetes.default.svc"
+          aliasNameSource: serviceaccount_name
+          tokenTTL: 3600
+          tokenMaxTTL: 7200
+          tokenBoundCIDRs:
+            - "10.0.0.0/16"
+            - "172.16.0.0/12"
+          tokenExplicitMaxTTL: 14400
+          tokenNoDefaultPolicy: true
+          tokenNumUses: 10
+          tokenPeriod: 1800
+          tokenType: batch
+    asserts:
+      - equal:
+          path: spec.audience
+          value: "https://kubernetes.default.svc"
+      - equal:
+          path: spec.aliasNameSource
+          value: serviceaccount_name
+      - equal:
+          path: spec.tokenTTL
+          value: 3600
+      - equal:
+          path: spec.tokenMaxTTL
+          value: 7200
+      - equal:
+          path: spec.tokenBoundCIDRs
+          value:
+            - "10.0.0.0/16"
+            - "172.16.0.0/12"
+      - equal:
+          path: spec.tokenExplicitMaxTTL
+          value: 14400
+      - equal:
+          path: spec.tokenNoDefaultPolicy
+          value: true
+      - equal:
+          path: spec.tokenNumUses
+          value: 10
+      - equal:
+          path: spec.tokenPeriod
+          value: 1800
+      - equal:
+          path: spec.tokenType
+          value: batch
+
+  - it: should render connection when specified
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      kubernetesAuthEngineRoles:
+        first-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+        second-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - writer
+          targetNamespaces:
+            - app-ns
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      kubernetesAuthEngineRoles:
+        my-role:
+          authentication:
+            role: vault-admin
+          policies:
+            - reader
+          targetNamespaces:
+            - default
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

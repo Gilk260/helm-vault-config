@@ -4,6 +4,8 @@ fullnameOverride: ""
 
 authEngineMounts: {}
 
+kubernetesAuthEngineRoles: {}
+
 randomSecrets: {}
 
 secretEngineMounts: {}

@@ -1,0 +1,85 @@
+{{- range $name, $config := .Values.kubernetesAuthEngineRoles }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: KubernetesAuthEngineRole
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "kubernetesauthenginerole") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "kubernetesAuthEngineRoles.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  path: {{ default "kubernetes" $config.path | quote }}
+  name: {{ default $name $config.name | quote }}
+  targetServiceAccounts:
+    {{- default (list "default") $config.targetServiceAccounts | toYaml | nindent 4 }}
+  policies:
+    {{- required (printf "kubernetesAuthEngineRoles.%s.policies is required" $name) $config.policies | toYaml | nindent 4 }}
+  {{- if and $config.targetNamespaces $config.targetNamespaceSelector }}
+  {{- fail (printf "kubernetesAuthEngineRoles.%s: specify exactly one of targetNamespaces or targetNamespaceSelector" $name) }}
+  {{- else if $config.targetNamespaces }}
+  targetNamespaces:
+    targetNamespaces:
+      {{- $config.targetNamespaces | toYaml | nindent 6 }}
+  {{- else if $config.targetNamespaceSelector }}
+  targetNamespaces:
+    targetNamespaceSelector:
+      {{- $config.targetNamespaceSelector | toYaml | nindent 6 }}
+  {{- else }}
+  {{- fail (printf "kubernetesAuthEngineRoles.%s: one of targetNamespaces or targetNamespaceSelector is required" $name) }}
+  {{- end }}
+  {{- with $config.audience }}
+  audience: {{ . | quote }}
+  {{- end }}
+  {{- with $config.aliasNameSource }}
+  aliasNameSource: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenTTL }}
+  tokenTTL: {{ . }}
+  {{- end }}
+  {{- with $config.tokenMaxTTL }}
+  tokenMaxTTL: {{ . }}
+  {{- end }}
+  {{- with $config.tokenBoundCIDRs }}
+  tokenBoundCIDRs:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  {{- with $config.tokenExplicitMaxTTL }}
+  tokenExplicitMaxTTL: {{ . }}
+  {{- end }}
+  {{- with $config.tokenNoDefaultPolicy }}
+  tokenNoDefaultPolicy: {{ . }}
+  {{- end }}
+  {{- with $config.tokenNumUses }}
+  tokenNumUses: {{ . }}
+  {{- end }}
+  {{- with $config.tokenPeriod }}
+  tokenPeriod: {{ . }}
+  {{- end }}
+  {{- with $config.tokenType }}
+  tokenType: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
