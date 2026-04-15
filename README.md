@@ -1,6 +1,6 @@
 # VaultConfig
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![AppVersion: 0.8.42](https://img.shields.io/badge/AppVersion-0.8.42-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.8.42](https://img.shields.io/badge/AppVersion-0.8.42-informational?style=flat-square)
 
 **Homepage:** <https://github.com/Gilk260/helm-vault-config>
 
@@ -24,6 +24,15 @@ helm install my-release helm-vault-config/vault-config
 | Name | Email | Url |
 | ---- | ------ | --- |
 | Gilk | <Gilk260@gmail.com> |  |
+
+## Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| fullnameOverride | string | `""` |  |
+| nameOverride | string | `""` |  |
+| randomSecrets | object | `{}` |  |
+| vaultSecrets | object | `{}` |  |
 
 ## License
 
