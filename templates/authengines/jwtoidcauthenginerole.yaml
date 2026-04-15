@@ -1,0 +1,117 @@
+{{- range $name, $config := .Values.jwtOidcAuthEngineRoles }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: JWTOIDCAuthEngineRole
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "jwtoidcauthenginerole") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "jwtOidcAuthEngineRoles.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  path: {{ required (printf "jwtOidcAuthEngineRoles.%s.path is required" $name) $config.path | quote }}
+  name: {{ default $name $config.name | quote }}
+  userClaim: {{ required (printf "jwtOidcAuthEngineRoles.%s.userClaim is required" $name) $config.userClaim | quote }}
+  {{- with $config.roleType }}
+  roleType: {{ . | quote }}
+  {{- end }}
+  {{- with $config.boundAudiences }}
+  boundAudiences:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundSubject }}
+  boundSubject: {{ . | quote }}
+  {{- end }}
+  {{- with $config.boundClaims }}
+  boundClaims:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundClaimsType }}
+  boundClaimsType: {{ . | quote }}
+  {{- end }}
+  {{- with $config.claimMappings }}
+  claimMappings:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.groupsClaim }}
+  groupsClaim: {{ . | quote }}
+  {{- end }}
+  {{- if hasKey $config "clockSkewLeeway" }}
+  clockSkewLeeway: {{ $config.clockSkewLeeway }}
+  {{- end }}
+  {{- if hasKey $config "expirationLeeway" }}
+  expirationLeeway: {{ $config.expirationLeeway }}
+  {{- end }}
+  {{- if hasKey $config "notBeforeLeeway" }}
+  notBeforeLeeway: {{ $config.notBeforeLeeway }}
+  {{- end }}
+  {{- if hasKey $config "maxage" }}
+  maxage: {{ $config.maxage }}
+  {{- end }}
+  {{- with $config.OIDCScopes }}
+  OIDCScopes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.allowedRedirectURIs }}
+  allowedRedirectURIs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if hasKey $config "userClaimJSONPointer" }}
+  userClaimJSONPointer: {{ $config.userClaimJSONPointer }}
+  {{- end }}
+  {{- if hasKey $config "verboseOIDCLogging" }}
+  verboseOIDCLogging: {{ $config.verboseOIDCLogging }}
+  {{- end }}
+  {{- with $config.tokenTTL }}
+  tokenTTL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenMaxTTL }}
+  tokenMaxTTL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenExplicitMaxTTL }}
+  tokenExplicitMaxTTL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenType }}
+  tokenType: {{ . | quote }}
+  {{- end }}
+  {{- with $config.tokenPolicies }}
+  tokenPolicies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.tokenBoundCIDRs }}
+  tokenBoundCIDRs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if hasKey $config "tokenNumUses" }}
+  tokenNumUses: {{ $config.tokenNumUses }}
+  {{- end }}
+  {{- if hasKey $config "tokenPeriod" }}
+  tokenPeriod: {{ $config.tokenPeriod }}
+  {{- end }}
+  {{- if hasKey $config "tokenNoDefaultPolicy" }}
+  tokenNoDefaultPolicy: {{ $config.tokenNoDefaultPolicy }}
+  {{- end }}
+{{- end }}
+{{- end }}

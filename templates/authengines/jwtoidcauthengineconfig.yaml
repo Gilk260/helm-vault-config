@@ -1,0 +1,100 @@
+{{- range $name, $config := .Values.jwtOidcAuthEngineConfigs }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: JWTOIDCAuthEngineConfig
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "jwtoidcauthengineconfig") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "jwtOidcAuthEngineConfigs.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  path: {{ required (printf "jwtOidcAuthEngineConfigs.%s.path is required" $name) $config.path | quote }}
+  {{- with $config.OIDCDiscoveryURL }}
+  OIDCDiscoveryURL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.OIDCDiscoveryCAPEM }}
+  OIDCDiscoveryCAPEM: {{ . | quote }}
+  {{- end }}
+  {{- with $config.OIDCClientID }}
+  OIDCClientID: {{ . | quote }}
+  {{- end }}
+  {{- with $config.OIDCCredentials }}
+  OIDCCredentials:
+    {{- with .passwordKey }}
+    passwordKey: {{ . | quote }}
+    {{- end }}
+    {{- with .usernameKey }}
+    usernameKey: {{ . | quote }}
+    {{- end }}
+    {{- with .secret }}
+    secret:
+      name: {{ .name | quote }}
+    {{- end }}
+    {{- with .vaultSecret }}
+    vaultSecret:
+      path: {{ .path | quote }}
+    {{- end }}
+    {{- with .randomSecret }}
+    randomSecret:
+      name: {{ .name | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $config.OIDCResponseMode }}
+  OIDCResponseMode: {{ . | quote }}
+  {{- end }}
+  {{- with $config.OIDCResponseTypes }}
+  OIDCResponseTypes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.JWKSURL }}
+  JWKSURL: {{ . | quote }}
+  {{- end }}
+  {{- with $config.JWKSCAPEM }}
+  JWKSCAPEM: {{ . | quote }}
+  {{- end }}
+  {{- with $config.JWTValidationPubKeys }}
+  JWTValidationPubKeys:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.JWTSupportedAlgs }}
+  JWTSupportedAlgs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $config.boundIssuer }}
+  boundIssuer: {{ . | quote }}
+  {{- end }}
+  {{- with $config.defaultRole }}
+  defaultRole: {{ . | quote }}
+  {{- end }}
+  {{- if hasKey $config "namespaceInState" }}
+  namespaceInState: {{ $config.namespaceInState }}
+  {{- end }}
+  {{- with $config.providerConfig }}
+  providerConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

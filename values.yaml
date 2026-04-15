@@ -5,3 +5,7 @@ fullnameOverride: ""
 randomSecrets: {}
 
 vaultSecrets: {}
+
+jwtOidcAuthEngineConfigs: {}
+
+jwtOidcAuthEngineRoles: {}
