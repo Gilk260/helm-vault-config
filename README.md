@@ -32,6 +32,7 @@ helm install my-release helm-vault-config/vault-config
 | authEngineMounts | object | `{}` |  |
 | fullnameOverride | string | `""` |  |
 | kubernetesAuthEngineConfigs | object | `{}` |  |
+| kubernetesAuthEngineRoles | object | `{}` |  |
 | nameOverride | string | `""` |  |
 | passwordPolicies | object | `{}` |  |
 | policies | object | `{}` |  |
