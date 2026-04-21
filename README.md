@@ -29,6 +29,7 @@ helm install my-release helm-vault-config/vault-config
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| authEngineMounts | object | `{}` |  |
 | fullnameOverride | string | `""` |  |
 | nameOverride | string | `""` |  |
 | passwordPolicies | object | `{}` |  |
