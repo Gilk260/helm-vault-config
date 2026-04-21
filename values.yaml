@@ -4,6 +4,8 @@ fullnameOverride: ""
 
 randomSecrets: {}
 
+secretEngineMounts: {}
+
 vaultSecrets: {}
 
 policies: {}
