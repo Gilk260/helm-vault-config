@@ -2,6 +2,8 @@
 nameOverride: ""
 fullnameOverride: ""
 
+authEngineMounts: {}
+
 randomSecrets: {}
 
 secretEngineMounts: {}

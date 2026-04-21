@@ -1,0 +1,267 @@
+---
+suite: AuthEngineMount
+templates:
+  - authengines/authenginemount.yaml
+
+tests:
+  - it: should not render when authEngineMounts is empty
+    set:
+      authEngineMounts: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      authEngineMounts:
+        disabled-mount: null
+        active-mount:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: AuthEngineMount
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-k8s-auth-authenginemount$"
+
+  - it: should use dict key as vault name by default
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - equal:
+          path: spec.name
+          value: k8s-auth
+
+  - it: should allow overriding vault name
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          name: custom-name
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-name
+
+  - it: should fail when type is missing
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          path: kubernetes
+    asserts:
+      - failedTemplate:
+          errorMessage: "authEngineMounts.k8s-auth.type is required"
+
+  - it: should fail when path is missing
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+    asserts:
+      - failedTemplate:
+          errorMessage: "authEngineMounts.k8s-auth.path is required"
+
+  - it: should fail when authentication.role is missing
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication: {}
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - failedTemplate:
+          errorMessage: "authEngineMounts.k8s-auth.authentication.role is required"
+
+  - it: should apply sensible defaults
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.name
+          value: k8s-auth
+      - isNull:
+          path: spec.description
+      - isNull:
+          path: spec.config
+      - isNull:
+          path: spec.local
+      - isNull:
+          path: spec.sealwrap
+      - isNull:
+          path: spec.connection
+
+  - it: should render description when set
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          description: "Kubernetes auth for dev cluster"
+    asserts:
+      - equal:
+          path: spec.description
+          value: "Kubernetes auth for dev cluster"
+
+  - it: should render config when set
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          config:
+            defaultLeaseTTL: 1h
+            maxLeaseTTL: 24h
+            listingVisibility: unauth
+            tokenType: default-service
+    asserts:
+      - equal:
+          path: spec.config.defaultLeaseTTL
+          value: 1h
+      - equal:
+          path: spec.config.maxLeaseTTL
+          value: 24h
+      - equal:
+          path: spec.config.listingVisibility
+          value: unauth
+      - equal:
+          path: spec.config.tokenType
+          value: default-service
+
+  - it: should render local boolean when true
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          local: true
+    asserts:
+      - equal:
+          path: spec.local
+          value: true
+
+  - it: should render sealwrap boolean when true
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          sealwrap: true
+    asserts:
+      - equal:
+          path: spec.sealwrap
+          value: true
+
+  - it: should render connection when specified
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should render multiple resources
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+        ldap-auth:
+          authentication:
+            role: vault-admin
+          type: ldap
+          path: ldap
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      authEngineMounts:
+        k8s-auth:
+          authentication:
+            role: vault-admin
+          type: kubernetes
+          path: kubernetes
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
