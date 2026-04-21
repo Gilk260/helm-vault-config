@@ -34,6 +34,7 @@ helm install my-release helm-vault-config/vault-config
 | passwordPolicies | object | `{}` |  |
 | policies | object | `{}` |  |
 | randomSecrets | object | `{}` |  |
+| secretEngineMounts | object | `{}` |  |
 | vaultSecrets | object | `{}` |  |
 
 ## License
