@@ -31,6 +31,7 @@ helm install my-release helm-vault-config/vault-config
 |-----|------|---------|-------------|
 | fullnameOverride | string | `""` |  |
 | nameOverride | string | `""` |  |
+| passwordPolicies | object | `{}` |  |
 | policies | object | `{}` |  |
 | randomSecrets | object | `{}` |  |
 | vaultSecrets | object | `{}` |  |
