@@ -29,6 +29,8 @@ helm install my-release helm-vault-config/vault-config
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| auditRequestHeaders | object | `{}` |  |
+| audits | object | `{}` |  |
 | authEngineMounts | object | `{}` |  |
 | fullnameOverride | string | `""` |  |
 | kubernetesAuthEngineConfigs | object | `{}` |  |

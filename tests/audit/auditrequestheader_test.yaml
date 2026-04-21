@@ -1,0 +1,236 @@
+---
+suite: AuditRequestHeader
+templates:
+  - audit/auditrequestheaders.yaml
+
+tests:
+  - it: should not render when auditRequestHeaders is empty
+    set:
+      auditRequestHeaders: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      auditRequestHeaders:
+        disabled-header: null
+        active-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: AuditRequestHeader
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-x-custom-header-auditrequestheader$"
+
+  - it: should apply sensible defaults
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.hmac
+          value: false
+
+  - it: should allow overriding authentication defaults
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+            namespace: admin
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+      - equal:
+          path: spec.authentication.namespace
+          value: admin
+
+  - it: should not render namespace when not specified
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.authentication.namespace
+
+  - it: should render name when set
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+          name: X-Custom-Header
+    asserts:
+      - equal:
+          path: spec.name
+          value: X-Custom-Header
+
+  - it: should not render name when not set
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.name
+
+  - it: should render hmac as true when set
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+          hmac: true
+    asserts:
+      - equal:
+          path: spec.hmac
+          value: true
+
+  - it: should render hmac as false by default
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - equal:
+          path: spec.hmac
+          value: false
+
+  - it: should render connection when specified
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render connection with tLSConfig
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "https://openbao.openbao.svc:8200"
+            tLSConfig:
+              cacert: /etc/ssl/certs/ca.pem
+              skipVerify: false
+              tlsServerName: openbao.example.com
+              tlsSecret:
+                name: vault-tls
+    asserts:
+      - equal:
+          path: spec.connection.tLSConfig.cacert
+          value: /etc/ssl/certs/ca.pem
+      - equal:
+          path: spec.connection.tLSConfig.skipVerify
+          value: false
+      - equal:
+          path: spec.connection.tLSConfig.tlsServerName
+          value: openbao.example.com
+      - equal:
+          path: spec.connection.tLSConfig.tlsSecret.name
+          value: vault-tls
+
+  - it: should fail when authentication.role is missing
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "auditRequestHeaders.x-custom-header.authentication.role is required"
+
+  - it: should render multiple resources
+    set:
+      auditRequestHeaders:
+        first-header:
+          authentication:
+            role: vault-admin
+        second-header:
+          authentication:
+            role: vault-admin
+          hmac: true
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      auditRequestHeaders:
+        x-custom-header:
+          authentication:
+            role: vault-admin
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm

@@ -6,6 +6,10 @@ authEngineMounts: {}
 
 kubernetesAuthEngineRoles: {}
 
+audits: {}
+
+auditRequestHeaders: {}
+
 randomSecrets: {}
 
 secretEngineMounts: {}
