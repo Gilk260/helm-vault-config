@@ -1,0 +1,39 @@
+{{- range $name, $config := .Values.policies }}
+{{- if $config }}
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: {{ include "vault-config.resourceName" (dict "context" $ "resourceName" $name "resourceType" "policy") }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "vault-config.labels" $ | nindent 4 }}
+spec:
+  authentication:
+    path: {{ default "kubernetes" $config.authentication.path | quote }}
+    role: {{ required (printf "policies.%s.authentication.role is required" $name) $config.authentication.role | quote }}
+    serviceAccount:
+      name: {{ default "default" ($config.authentication.serviceAccount).name | quote }}
+    {{- with $config.authentication.namespace }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  {{- with $config.connection }}
+  connection:
+    address: {{ .address | quote }}
+    {{- with .maxRetries }}
+    maxRetries: {{ . }}
+    {{- end }}
+    {{- with .timeOut }}
+    timeOut: {{ . | quote }}
+    {{- end }}
+    {{- with .tLSConfig }}
+    tLSConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  name: {{ default $name $config.name | quote }}
+  type: {{ default "acl" $config.type | quote }}
+  policy: |
+{{ required (printf "policies.%s.policy is required" $name) $config.policy | indent 4 }}
+{{- end }}
+{{- end }}

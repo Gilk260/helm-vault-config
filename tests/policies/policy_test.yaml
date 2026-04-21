@@ -1,0 +1,259 @@
+---
+suite: Policy
+templates:
+  - policies/policies.yaml
+
+tests:
+  - it: should not render when policies is empty
+    set:
+      policies: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should skip null entries (override to disable)
+    set:
+      policies:
+        disabled-policy: null
+        active-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render correct apiVersion and kind
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - isAPIVersion:
+          of: redhatcop.redhat.io/v1alpha1
+      - isKind:
+          of: Policy
+
+  - it: should generate resource name with chart prefix
+    release:
+      name: my-app
+    set:
+      policies:
+        read-secrets:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-read-secrets-policy$"
+
+  - it: should use dict key as vault name by default
+    set:
+      policies:
+        my-read-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - equal:
+          path: spec.name
+          value: my-read-policy
+
+  - it: should allow overriding vault name
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          name: custom-policy-name
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - equal:
+          path: spec.name
+          value: custom-policy-name
+
+  - it: should apply sensible defaults
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: kubernetes
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: default
+      - equal:
+          path: spec.type
+          value: acl
+
+  - it: should allow overriding all defaults
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+            path: custom-auth
+            serviceAccount:
+              name: my-sa
+          type: acl
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - equal:
+          path: spec.authentication.path
+          value: custom-auth
+      - equal:
+          path: spec.authentication.serviceAccount.name
+          value: my-sa
+
+  - it: should fail when authentication.role is missing
+    set:
+      policies:
+        my-policy:
+          authentication: {}
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - failedTemplate:
+          errorMessage: "policies.my-policy.authentication.role is required"
+
+  - it: should fail when policy content is missing
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+    asserts:
+      - failedTemplate:
+          errorMessage: "policies.my-policy.policy is required"
+
+  - it: should render multi-line HCL policy
+    set:
+      policies:
+        app-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/data/app/*" {
+              capabilities = ["create", "read", "update", "delete", "list"]
+            }
+
+            path "secret/metadata/app/*" {
+              capabilities = ["list"]
+            }
+    asserts:
+      - matchRegex:
+          path: spec.policy
+          pattern: 'path "secret/data/app/\*"'
+      - matchRegex:
+          path: spec.policy
+          pattern: 'path "secret/metadata/app/\*"'
+      - matchRegex:
+          path: spec.policy
+          pattern: 'capabilities = \["create", "read", "update", "delete", "list"\]'
+
+  - it: should render connection when specified
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          connection:
+            address: "http://openbao.openbao.svc:8200"
+            timeOut: "30s"
+            maxRetries: 3
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - equal:
+          path: spec.connection.address
+          value: "http://openbao.openbao.svc:8200"
+      - equal:
+          path: spec.connection.timeOut
+          value: "30s"
+      - equal:
+          path: spec.connection.maxRetries
+          value: 3
+
+  - it: should not render connection when not specified
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - isNull:
+          path: spec.connection
+
+  - it: should render multiple resources
+    set:
+      policies:
+        read-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+        admin-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["create", "read", "update", "delete", "list"]
+            }
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should include common labels
+    set:
+      policies:
+        my-policy:
+          authentication:
+            role: vault-admin
+          policy: |
+            path "secret/*" {
+              capabilities = ["read"]
+            }
+    asserts:
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
