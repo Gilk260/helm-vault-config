@@ -21,3 +21,7 @@ policies: {}
 passwordPolicies: {}
 
 kubernetesAuthEngineConfigs: {}
+
+githubSecretEngineConfigs: {}
+
+githubSecretEngineRoles: {}
